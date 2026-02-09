@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { getAttemptMeta } from "@/lib/attemptStore";
 import { MockSubmitSection } from "./MockSubmitSection";
 
 export function AttemptMetaActions({ attemptId }: { attemptId: string }) {
-  const [sectionId, setSectionId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const meta = getAttemptMeta(attemptId);
-    setSectionId(meta?.sectionId ?? null);
-  }, [attemptId]);
+  const meta = getAttemptMeta(attemptId);
+  const sectionId = meta?.sectionId ?? null;
 
   if (!sectionId) return null;
 
