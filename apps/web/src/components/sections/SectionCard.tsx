@@ -12,6 +12,8 @@ import {
   getActiveAttemptIdForSection,
   getLastCompletedAttemptIdForSection,
 } from "@/lib/attemptStore";
+import { useRouter } from "next/navigation";
+
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -41,6 +43,7 @@ export function SectionCard({ section }: { section: SectionDef }) {
   );
 
   const badge = statusLabel(status);
+  const router = useRouter();
 
   function refresh() {
     force((x) => x + 1);
@@ -51,12 +54,12 @@ export function SectionCard({ section }: { section: SectionDef }) {
     setSectionStatus(section.id, "in_progress");
     refresh();
     // Navigate via Link to keep code simple; we can programmatic route later.
-    window.location.href = `/attempts/section/${attemptId}`;
+    router.push(`/attempts/section/${attemptId}`);
   }
 
   function onResume() {
     if (!activeAttemptId) return;
-    window.location.href = `/attempts/section/${activeAttemptId}`;
+    router.push(`/attempts/section/${activeAttemptId}`);
   }
 
   const canReview = status === "completed" && !!lastCompletedAttemptId;
@@ -92,7 +95,7 @@ export function SectionCard({ section }: { section: SectionDef }) {
 
           {canReview ? (
             <Button asChild variant="secondary">
-              <Link href={`/attempts/section/${lastCompletedAttemptId}/summary`}>
+              <Link href={`/attempts/section/${lastCompletedAttemptId}/summary?sectionId=${section.id}`}>
                 Review
               </Link>
             </Button>
@@ -103,19 +106,7 @@ export function SectionCard({ section }: { section: SectionDef }) {
           )}
         </div>
 
-        {/* Dev helper (optional): remove later */}
-        <div className="pt-2">
-          <Button
-            variant="ghost"
-            className="text-xs px-2"
-            onClick={() => {
-              setSectionStatus(section.id, "not_started");
-              refresh();
-            }}
-          >
-            Reset status (dev)
-          </Button>
-        </div>
+        {/* Dev helper (optional): remove later */}        
       </CardContent>
     </Card>
   );

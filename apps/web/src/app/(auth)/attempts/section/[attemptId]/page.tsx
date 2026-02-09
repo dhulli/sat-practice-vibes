@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AttemptMetaActions } from "@/components/attempts/AttemptMetaActions";
-
+import { GoToSummaryButton } from "@/components/attempts/GoToSummaryButton";
 
 export default async function SectionAttemptPage({
   params,
@@ -30,14 +30,8 @@ export default async function SectionAttemptPage({
             This is a placeholder for the timed section-taking UI. Next chunk will
             render questions and timer.
           </p>
-          <div className="flex gap-2">
-            <Button asChild>
-              <Link href={`/attempts/section/${attemptId}/summary`}>
-                Go to Summary (mock)
-              </Link>
-            </Button>
-          </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <GoToSummaryButton attemptId={attemptId} />
             <AttemptMetaActions attemptId={attemptId} />
           </div>
         </CardContent>

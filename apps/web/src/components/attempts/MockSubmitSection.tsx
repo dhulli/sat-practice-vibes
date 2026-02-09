@@ -16,7 +16,7 @@ export function MockSubmitSection({
       onClick={() => {
         markAttemptSubmitted(attemptId);
         setSectionStatus(sectionId, "completed");
-        window.location.href = `/attempts/section/${attemptId}/summary`;
+        window.location.href = `/attempts/section/${attemptId}/summary?sectionId=${encodeURIComponent(sectionId)}`;
       }}
     >
       Mock Submit (complete)
