@@ -1,14 +1,25 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { SectionCard } from "@/components/sections/SectionCard";
+import { buildSections } from "@/lib/sections";
 
 export default function MathSectionsPage() {
+  const sections = buildSections("MATH", 30);
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Math Sections</h1>
-      <Card className="rounded-2xl">
-        <CardContent className="p-6 text-sm text-muted-foreground">
-          Math Section list UI comes next (Chunk 2): Math Section 01–30 with Start/Resume/Review.
-        </CardContent>
-      </Card>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Math Sections</h1>
+          <p className="text-sm text-muted-foreground">
+            Timed practice • 22 questions • 4 categories • 30 sections
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {sections.map((s) => (
+          <SectionCard key={s.id} section={s} />
+        ))}
+      </div>
     </div>
   );
 }
