@@ -5,8 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { buildMockSkillQuestions, type SkillQuestion } from "@/lib/mockSkillQuestions";
+import { buildMockSkillQuestions } from "@/lib/mockSkillQuestions";
 import { loadSkillProgress, saveSkillProgress, resetSkillProgress } from "@/lib/skillPracticeStore";
+import { Progress } from "@/components/ui/progress";
+import { MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 
 function strip(s: string) {
   return s.trim();
@@ -30,20 +39,51 @@ export function SkillPractice({ skillId }: { skillId: string }) {
   const [checked, setChecked] = useState<null | { correct: boolean; correctAnswer: string }>(null);
 
   const q = questions[idx];
+  // If user already answered this question earlier, preload answer and checked state
+    useEffect(() => {
+        const p = loadSkillProgress(skillId);
+        const prev = p.answered[q.id];
+        if (prev) {
+            setAnswer(prev.userAnswer);
+            setChecked({ correct: prev.correct, correctAnswer: q.correctAnswer });
+        } else {
+            setAnswer("");
+            setChecked(null);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [skillId, q.id]);
+
+    useEffect(() => {
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key === "Enter" && !checked && answer.trim()) {
+            e.preventDefault();
+            doCheck();
+            }
+            if ((e.key === "n" || e.key === "N") && checked) {
+            e.preventDefault();
+            next();
+            }
+        }
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [answer, checked, idx]);
+
+
+  const progressState = typeof window === "undefined" ? null : loadSkillProgress(skillId);
+  const answeredCount = progressState ? Object.keys(progressState.answered).length : 0;
+
+  const correctCount = progressState
+    ? Object.values(progressState.answered).filter((a) => a.correct).length
+    : 0;
+
+  const accuracyPct = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
+  const percentDone = Math.round(((idx + 1) / questions.length) * 100);
 
   useEffect(() => {
     const p = loadSkillProgress(skillId);
     p.index = idx;
     saveSkillProgress(p);
-  }, [skillId, idx]);
-
-
-  // persist index
-  useEffect(() => {
-    const p = loadSkillProgress(skillId);
-    p.index = idx;
-    saveSkillProgress(p);
-  }, [skillId, idx]);
+  }, [skillId, idx]);  
 
   function doCheck() {
     const user = strip(answer);
@@ -76,27 +116,50 @@ export function SkillPractice({ skillId }: { skillId: string }) {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Practice: {skillId}</h1>
-          <p className="text-sm text-muted-foreground">Untimed • Instant check • Explanation</p>
+            <h1 className="text-2xl font-semibold tracking-tight">Practice: {skillId}</h1>
+            <p className="text-sm text-muted-foreground">Untimed • Instant check • Explanation</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">Q {progress}</Badge>
-          <Badge variant="outline">{q.complexity}</Badge>
-          <Button
-            variant="ghost"
-            className="text-xs"
-            onClick={() => {
-              resetSkillProgress(skillId);
-              setIdx(0);
-              setAnswer("");
-              setChecked(null);
-            }}
-          >
-            Reset
-          </Button>
-        </div>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="More">
+                <MoreVertical className="h-5 w-5" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                onClick={() => {
+                    resetSkillProgress(skillId);
+                    setIdx(0);
+                    setAnswer("");
+                    setChecked(null);
+                }}
+                >
+                Reset practice
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+      
+      <Card className="rounded-2xl">
+        <CardContent className="p-4 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-muted-foreground">
+                Answered: <span className="font-medium text-foreground">{answeredCount}</span> / {questions.length}
+                {"  "}•{"  "}
+                Accuracy: <span className="font-medium text-foreground">{accuracyPct}%</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+                <Badge variant="secondary">Q {idx + 1} / {questions.length}</Badge>
+                <Badge variant="outline">{q.complexity}</Badge>
+            </div>
+            </div>
+
+            <Progress value={percentDone} />
+        </CardContent>
+      </Card>
+
 
       <Card className="rounded-2xl">
         <CardHeader className="space-y-2">
@@ -119,23 +182,31 @@ export function SkillPractice({ skillId }: { skillId: string }) {
             </div>
           ) : null}
         </CardHeader>
-
+        
         <CardContent className="space-y-3">
           <div className="space-y-2">
             <div className="text-sm font-medium">Your answer</div>
             <Input
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder={q.kind === "mcq" ? "Type A, B, C, or D" : "Type your answer"}
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder={q.kind === "mcq" ? "Type A, B, C, or D" : "Type your answer"}
+                disabled={!!checked}
             />
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={doCheck} disabled={!strip(answer) || !!checked}>
-              Check
+            <Button onClick={doCheck} disabled={!answer.trim() || !!checked}>
+                Check
             </Button>
             <Button variant="secondary" onClick={next} disabled={!checked || idx >= questions.length - 1}>
               Next
+            </Button>
+            <Button
+                variant="secondary"
+                onClick={() => setChecked(null)}
+                disabled={!checked}
+                >
+                Try again
             </Button>
           </div>
 
