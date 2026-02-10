@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TopBar } from "./TopBar";
 import { BottomBar } from "./BottomBar";
 import { SplitPane } from "./SplitPane";
-import { QuestionGridModal } from "./QuestionGridModal";
+import { QuestionGridModal, type QuestionStatus } from "./QuestionGridModal";
 
 type LayoutMode = "split" | "single";
 
@@ -20,6 +20,9 @@ type Props = {
   totalQuestions: number;
   currentIndex: number; // 0-based
 
+  // NEW: statuses for grid modal
+  statuses?: QuestionStatus[];
+
   // content
   leftPane?: React.ReactNode;   // used in split mode
   mainPane: React.ReactNode;    // used in single mode (stimulus+question stack)
@@ -29,6 +32,9 @@ type Props = {
   onJump: (index: number) => void;
   onBack: () => void;
   onNext: () => void;
+
+  // submit (optional; used when last Next opens modal)
+  onSubmit?: () => void;
 
   userLabel?: string;
 };
@@ -40,18 +46,30 @@ export function ExamShell({
   timeText,
   totalQuestions,
   currentIndex,
+  statuses,
   leftPane,
   rightPane,
   mainPane,
   onJump,
   onBack,
   onNext,
+  onSubmit,
   userLabel,
 }: Props) {
   const [gridOpen, setGridOpen] = useState(false);
 
+  const isLast = currentIndex >= totalQuestions - 1;
+
+  const effectiveStatuses = useMemo(() => {
+    // If caller provides statuses, use them; otherwise basic default.
+    if (statuses && statuses.length === totalQuestions) return statuses;
+    return Array.from({ length: totalQuestions }, (_, i) =>
+      i === currentIndex ? ("current" as const) : ("unanswered" as const)
+    );
+  }, [statuses, totalQuestions, currentIndex]);
+
   return (
-    <div className="flex-1 min-h-0">
+    <div className="h-screen w-screen overflow-hidden flex flex-col">
       <TopBar
         title={title}
         showTimer={showTimer}
@@ -83,14 +101,13 @@ export function ExamShell({
         onOpenGrid={() => setGridOpen(true)}
         onBack={onBack}
         onNext={() => {
-            if (currentIndex >= totalQuestions - 1) {
-            setGridOpen(true);
-            } else {
-            onNext();
-            }
+          // NEW: last question Next opens grid modal (check your work + submit)
+          if (isLast) setGridOpen(true);
+          else onNext();
         }}
         backDisabled={currentIndex <= 0}
-        nextDisabled={currentIndex >= totalQuestions - 1}
+        // NEW: Next is never disabled; last question Next opens modal
+        nextDisabled={false}
       />
 
       <QuestionGridModal
@@ -99,10 +116,13 @@ export function ExamShell({
         total={totalQuestions}
         currentIndex={currentIndex}
         onJump={onJump}
-        showSubmit={currentIndex >= totalQuestions - 1}
+        statuses={effectiveStatuses}
+        showSubmit={isLast}
         onSubmit={() => {
-            alert("Submit Section (mock)");
-            setGridOpen(false);
+          // for now mock submit if not provided
+          if (onSubmit) onSubmit();
+          else alert("Submit Section (mock)");
+          setGridOpen(false);
         }}
       />
     </div>
