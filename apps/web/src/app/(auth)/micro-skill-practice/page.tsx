@@ -34,7 +34,7 @@ export default function MicroSkillPracticePage() {
                   <div className="text-sm font-medium">{s.name}</div>
                   <div className="text-xs text-muted-foreground">{s.category}</div>
                   <Button asChild size="sm" className="w-full">
-                    <Link href={`/micro-skill-practice/${s.id}`}>Start</Link>
+                    <Link href={`/exam/micro-skill/${s.id}`}>Start</Link>
                   </Button>
                 </CardContent>
               </Card>

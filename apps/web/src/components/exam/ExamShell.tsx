@@ -37,6 +37,7 @@ type Props = {
   onSubmit?: () => void;
 
   userLabel?: string;
+  interceptLastNext?: boolean; // default true for timed sections
 };
 
 export function ExamShell({
@@ -55,6 +56,7 @@ export function ExamShell({
   onNext,
   onSubmit,
   userLabel,
+  interceptLastNext = true,
 }: Props) {
   const [gridOpen, setGridOpen] = useState(false);
 
@@ -102,7 +104,7 @@ export function ExamShell({
         onBack={onBack}
         onNext={() => {
           // NEW: last question Next opens grid modal (check your work + submit)
-          if (isLast) setGridOpen(true);
+          if (isLast && interceptLastNext) setGridOpen(true);
           else onNext();
         }}
         backDisabled={currentIndex <= 0}
@@ -117,7 +119,7 @@ export function ExamShell({
         currentIndex={currentIndex}
         onJump={onJump}
         statuses={effectiveStatuses}
-        showSubmit={isLast}
+        showSubmit={isLast && interceptLastNext}
         onSubmit={() => {
           // for now mock submit if not provided
           if (onSubmit) onSubmit();
