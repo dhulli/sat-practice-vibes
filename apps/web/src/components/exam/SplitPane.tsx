@@ -25,20 +25,24 @@ export function SplitPane({
 }: SplitPaneProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const saved = useMemo(() => {
-    if (typeof window === "undefined") return null;
+  const [leftPct, setLeftPct] = useState<number>(initialLeftPct);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // Load saved position AFTER mount to avoid SSR/CSR mismatch
     const v = window.localStorage.getItem(storageKey);
     const n = v ? Number(v) : NaN;
-    return Number.isFinite(n) ? n : null;
+    if (Number.isFinite(n)) setLeftPct(n);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
-  const [leftPct, setLeftPct] = useState<number>(saved ?? initialLeftPct);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!mounted) return;
     window.localStorage.setItem(storageKey, String(leftPct));
-  }, [leftPct, storageKey]);
+  }, [leftPct, storageKey, mounted]);
 
   function onPointerDown(e: React.PointerEvent) {
     setDragging(true);

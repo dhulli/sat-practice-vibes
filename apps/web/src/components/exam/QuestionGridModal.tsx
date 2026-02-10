@@ -9,9 +9,11 @@ type Props = {
   total: number;
   currentIndex: number; // 0-based
   onJump: (index: number) => void;
+  showSubmit?: boolean;
+  onSubmit?: () => void;
 };
 
-export function QuestionGridModal({ open, onClose, total, currentIndex, onJump }: Props) {
+export function QuestionGridModal({ open, onClose, total, currentIndex, onJump, showSubmit, onSubmit }: Props) {
   if (!open) return null;
 
   return (
@@ -44,11 +46,19 @@ export function QuestionGridModal({ open, onClose, total, currentIndex, onJump }
             })}
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>
-              Go to Review Page (later)
+                Close
             </Button>
+            {showSubmit ? (
+                <Button onClick={onSubmit}>Submit Section</Button>
+            ) : (
+                <Button variant="secondary" onClick={onClose}>
+                Go to Review Page (later)
+                </Button>
+            )}
           </div>
+
         </CardContent>
       </Card>
     </div>

@@ -51,7 +51,7 @@ export function ExamShell({
   const [gridOpen, setGridOpen] = useState(false);
 
   return (
-    <div className="h-[calc(100vh-0px)] flex flex-col">
+    <div className="flex-1 min-h-0">
       <TopBar
         title={title}
         showTimer={showTimer}
@@ -82,7 +82,13 @@ export function ExamShell({
         total={totalQuestions}
         onOpenGrid={() => setGridOpen(true)}
         onBack={onBack}
-        onNext={onNext}
+        onNext={() => {
+            if (currentIndex >= totalQuestions - 1) {
+            setGridOpen(true);
+            } else {
+            onNext();
+            }
+        }}
         backDisabled={currentIndex <= 0}
         nextDisabled={currentIndex >= totalQuestions - 1}
       />
@@ -93,6 +99,11 @@ export function ExamShell({
         total={totalQuestions}
         currentIndex={currentIndex}
         onJump={onJump}
+        showSubmit={currentIndex >= totalQuestions - 1}
+        onSubmit={() => {
+            alert("Submit Section (mock)");
+            setGridOpen(false);
+        }}
       />
     </div>
   );
