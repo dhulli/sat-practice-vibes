@@ -6,6 +6,16 @@ import { buildMockSkillQuestions } from "@/lib/mockSkillQuestions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  loadMicroSkillSession,
+  saveMicroSkillSession,
+  clearMicroSkillSession,
+  type MicroSkillSessionState,
+} from "@/lib/microSkillMasteryStore";
+
+
 
 function strip(s: string) {
   return s.trim();
@@ -34,7 +44,22 @@ export function MicroSkillPlayer({ skillId }: { skillId: string }) {
   const total = 30;
   const questions = useMemo(() => buildMockSkillQuestions(skillId, total), [skillId]);
 
-  const [s, setS] = useState<State>(() => ({
+  const router = useRouter();
+  
+  const [s, setS] = useState<State>(() => {
+  const saved = loadMicroSkillSession(skillId);
+  if (saved) {
+    return {
+      cycle: saved.cycle,
+      queue: saved.queue,
+      pos: saved.pos,
+      nextQueue: saved.nextQueue,
+      answers: saved.answers,
+      mastered: saved.mastered,
+      checked: saved.checked,
+    };
+  }
+  return {
     cycle: 1,
     queue: Array.from({ length: total }, (_, i) => i),
     pos: 0,
@@ -42,13 +67,32 @@ export function MicroSkillPlayer({ skillId }: { skillId: string }) {
     answers: {},
     mastered: {},
     checked: false,
-  }));
+    };
+  });
+  
+  useEffect(() => {
+  const snapshot: MicroSkillSessionState = {
+    version: 1,
+    skillId,
+    cycle: s.cycle,
+    queue: s.queue,
+    pos: s.pos,
+    nextQueue: s.nextQueue,
+    answers: s.answers,
+    mastered: s.mastered,
+    checked: s.checked,
+    updatedAt: Date.now(),
+  };
+
+  saveMicroSkillSession(snapshot);
+  }, [skillId, s]);
 
   // If fully mastered, show completion screen
   const masteredCount = Object.values(s.mastered).filter(Boolean).length;
   const masteryPct = Math.round((masteredCount / total) * 100);
 
   if (masteredCount >= total) {
+    clearMicroSkillSession(skillId);
     return (
       <MicroSkillShell
         title={`Micro-skill Practice: ${skillId}`}
@@ -92,6 +136,7 @@ export function MicroSkillPlayer({ skillId }: { skillId: string }) {
             </Card>
           </div>
         }
+        onExit={() => router.push("/micro-skill-practice")}
       />
     );
   }
@@ -329,6 +374,11 @@ export function MicroSkillPlayer({ skillId }: { skillId: string }) {
       userLabel="Varun Dhullipalla"
       leftPane={leftPane}
       rightPane={rightPane}
+      onExit={() => {
+        const ok = confirm("Exit practice? Your progress is saved.");
+        if (!ok) return;
+        router.push("/micro-skill-practice");
+      }}
     />
   );
 }

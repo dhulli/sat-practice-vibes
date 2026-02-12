@@ -41,9 +41,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 export function AppShell({
   children,
   userLabel,
+  rightSlot,
 }: {
   children: ReactNode;
-  userLabel: string;
+  userLabel?: string;
+  rightSlot?: React.ReactNode;
 }) {
   return (
     <div className="min-h-screen bg-background">
@@ -76,7 +78,10 @@ export function AppShell({
             </Badge>
           </div>
 
-          <div className="text-sm text-muted-foreground">{userLabel}</div>
+          <div className="flex items-center gap-3">
+            {userLabel ? <div className="text-sm text-muted-foreground">{userLabel}</div> : null}
+            {rightSlot}
+          </div>
         </div>
       </header>
 
