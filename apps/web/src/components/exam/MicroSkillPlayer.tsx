@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { MicroSkillShell } from "@/components/exam/MicroSkillShell";
 import { buildMockSkillQuestions } from "@/lib/mockSkillQuestions";
 import { Card, CardContent } from "@/components/ui/card";
@@ -129,7 +130,7 @@ export function MicroSkillPlayer({ skillId }: { skillId: string }) {
                   </Button>
 
                   <Button variant="secondary" asChild>
-                    <a href="/micro-skill-practice">Back to skills</a>
+                    <Link href="/micro-skill-practice">Back to skills</Link>
                   </Button>
                 </div>
               </CardContent>

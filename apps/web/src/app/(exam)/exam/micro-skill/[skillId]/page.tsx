@@ -1,4 +1,4 @@
-import { MicroSkillPlayer } from "@/components/exam/MicroSkillPlayer";
+import { MicroSkillExamClient } from "@/components/exam/micro/MicroSkillExamClient";
 
 export default async function MicroSkillExamPage({
   params,
@@ -6,5 +6,5 @@ export default async function MicroSkillExamPage({
   params: Promise<{ skillId: string }>;
 }) {
   const { skillId } = await params;
-  return <MicroSkillPlayer skillId={skillId} />;
+  return <MicroSkillExamClient microSkillId={skillId} />;
 }
