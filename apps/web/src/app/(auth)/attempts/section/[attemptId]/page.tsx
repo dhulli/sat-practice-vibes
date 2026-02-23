@@ -37,12 +37,10 @@ export default function SectionAttemptPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-background">
-      <SectionAttemptClient
-        attemptId={attemptId}
-        sectionId={meta.sectionId}
-        sectionType={meta.sectionType}
-      />
-    </div>
+    <SectionAttemptClient
+      attemptId={attemptId}
+      sectionId={meta.sectionId}
+      sectionType={meta.sectionType}
+    />
   );
 }

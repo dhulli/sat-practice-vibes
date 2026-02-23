@@ -24,6 +24,17 @@ enum SessionStatus {
   MASTERED
 }
 
+enum PracticeSectionType {
+  RW
+  MATH
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -32,8 +43,9 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  skillProgress SkillProgress[]
-  skillSessions SkillSession[]
+  skillProgress   SkillProgress[]
+  skillSessions   SkillSession[]
+  sectionAttempts SectionAttempt[]
 }
 
 model Section {
@@ -55,7 +67,7 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  section     Section     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section     Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   microSkills MicroSkill[]
 }
 
@@ -63,15 +75,15 @@ model MicroSkill {
   id         String   @id @default(uuid())
   sectionId  String
   categoryId String
-  code       String   @unique   // e.g. RW-MS-001
+  code       String   @unique // e.g. RW-MS-001
   name       String
   active     Boolean  @default(true)
   order      Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  category  Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  section   Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  category  Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   questions Question[]
 
   progress SkillProgress[]
@@ -83,42 +95,44 @@ model MicroSkill {
 
 model Question {
   id                   String       @id @default(uuid())
-  microSkillId          String
-  questionType          QuestionType
-  passageHtml           String?      // RW passage (optional)
-  questionHtml          String
-  choicesJson           Json?        // for MCQ: [{id:"A", textHtml:"..."}]
-  correctAnswer         String       // "A"/"B"/... or SPR value
-  explanationHtml       String
-  complexity            String       // Easy/Medium/Hard (string for now)
-  complexityReasonHtml  String
-  assetUrl              String?      // graph image later
-  active                Boolean      @default(true)
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  microSkillId         String
+  questionType         QuestionType
+  passageHtml          String? // RW passage (optional)
+  questionHtml         String
+  choicesJson          Json? // for MCQ: [{id:"A", textHtml:"..."}]
+  correctAnswer        String // "A"/"B"/... or SPR value
+  explanationHtml      String
+  complexity           String // Easy/Medium/Hard (string for now)
+  complexityReasonHtml String
+  assetUrl             String? // graph image later
+  active               Boolean      @default(true)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
-  sequenceNo            Int
-
-  @@unique([microSkillId, sequenceNo])
-  @@index([microSkillId, active, sequenceNo])
+  sequenceNo Int
 
   microSkill MicroSkill @relation(fields: [microSkillId], references: [id], onDelete: Cascade)
 
+  practiceSections      PracticeSectionQuestion[]
+  sectionAttemptAnswers SectionAttemptAnswer[]
+
+  @@unique([microSkillId, sequenceNo])
+  @@index([microSkillId, active, sequenceNo])
   @@index([microSkillId])
   @@index([questionType])
 }
 
 model SkillProgress {
-  id           String   @id @default(uuid())
-  userId       String
-  microSkillId String
-  masteryPct   Int      @default(0) // 0..100
-  masteredCount Int     @default(0)
-  totalQuestions Int    @default(30)
-  updatedAt    DateTime @updatedAt
-  createdAt    DateTime @default(now())
+  id             String   @id @default(uuid())
+  userId         String
+  microSkillId   String
+  masteryPct     Int      @default(0) // 0..100
+  masteredCount  Int      @default(0)
+  totalQuestions Int      @default(30)
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   microSkill MicroSkill @relation(fields: [microSkillId], references: [id], onDelete: Cascade)
 
   @@unique([userId, microSkillId])
@@ -131,7 +145,7 @@ model SkillSession {
   microSkillId  String
   status        SessionStatus @default(IN_PROGRESS)
   cycle         Int           @default(1)
-  queueJson     Json          // list of questionIds for current cycle
+  queueJson     Json // list of questionIds for current cycle
   pos           Int           @default(0) // index in queueJson
   nextQueueJson Json          @default("[]")
   masteredJson  Json          @default("[]") // list of mastered questionIds (set-like)
@@ -141,7 +155,85 @@ model SkillSession {
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   microSkill MicroSkill @relation(fields: [microSkillId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, microSkillId])
   @@index([userId])
   @@index([microSkillId])
-  @@unique([userId, microSkillId])
+}
+
+model PracticeSection {
+  id          String              @id @default(uuid())
+  type        PracticeSectionType
+  code        String              @unique // e.g. RW-SEC-001, MATH-SEC-014
+  name        String // e.g. "RW Section 1"
+  durationSec Int // RW: 1920 (32m), Math: 2100 (35m) or your config
+  active      Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  questions PracticeSectionQuestion[]
+  attempts  SectionAttempt[]
+
+  @@index([type, active])
+}
+
+model PracticeSectionQuestion {
+  id                String @id @default(uuid())
+  practiceSectionId String
+  questionId        String
+  sequenceNo        Int // order in the timed section (1..27 or 1..22)
+
+  // Optional denormalization for scoring speed (nice-to-have)
+  // categoryId       String?
+
+  practiceSection PracticeSection @relation(fields: [practiceSectionId], references: [id], onDelete: Cascade)
+  question        Question        @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([practiceSectionId, sequenceNo])
+  @@unique([practiceSectionId, questionId])
+  @@index([practiceSectionId, sequenceNo])
+}
+
+model SectionAttempt {
+  id                String        @id @default(uuid())
+  userId            String
+  practiceSectionId String
+  status            AttemptStatus @default(IN_PROGRESS)
+
+  startedAt   DateTime  @default(now())
+  endsAt      DateTime // server-authoritative time (startedAt + durationSec)
+  submittedAt DateTime?
+  expiredAt   DateTime?
+
+  // Denormalized score snapshot (fast summary)
+  scoreCorrect          Int   @default(0)
+  scoreTotal            Int   @default(0)
+  scorePct              Int   @default(0)
+  categoryBreakdownJson Json? // later: { "Craft and Structure": 80, ... }
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  practiceSection PracticeSection        @relation(fields: [practiceSectionId], references: [id], onDelete: Cascade)
+  answers         SectionAttemptAnswer[]
+
+  @@index([userId, status])
+  @@index([practiceSectionId])
+  @@index([userId, practiceSectionId, startedAt])
+}
+
+model SectionAttemptAnswer {
+  id         String @id @default(uuid())
+  attemptId  String
+  questionId String
+
+  answer     String
+  isCorrect  Boolean  @default(false)
+  answeredAt DateTime @default(now())
+
+  attempt  SectionAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question       @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
 }
