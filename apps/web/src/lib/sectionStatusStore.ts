@@ -18,7 +18,8 @@ function safeParse(json: string | null): StoredStatus {
 export function getSectionStatus(sectionId: string): SectionStatus {
   if (typeof window === "undefined") return "not_started";
   const map = safeParse(window.localStorage.getItem(KEY));
-  return map[sectionId] ?? "not_started";
+  const status = map[sectionId] ?? "not_started";
+  return status === "completed" ? "not_started" : status;
 }
 
 export function setSectionStatus(sectionId: string, status: SectionStatus): void {
