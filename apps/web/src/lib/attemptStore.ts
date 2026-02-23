@@ -53,13 +53,15 @@ export async function createSectionAttempt(sectionId: string, sectionType: Secti
       body: JSON.stringify({ sectionId, sectionType }),
     });
 
-    if (res.ok) {
-      const data = (await res.json()) as { attemptId: string; startedAt: string };
-      attemptId = data.attemptId;
-      startedAt = data.startedAt;
+    if (!res.ok) {
+      throw new Error("Unable to start section attempt on server");
     }
-  } catch {
-    // fallback to local-only mode
+
+    const data = (await res.json()) as { attemptId: string; startedAt: string };
+    attemptId = data.attemptId;
+    startedAt = data.startedAt;
+  } catch (e) {
+    throw e instanceof Error ? e : new Error("Unable to start section attempt on server");
   }
 
   writeAttemptMeta({
@@ -96,6 +98,7 @@ export async function saveAttemptProgress(args: {
   remainingSeconds: number;
   selected: Record<number, string>;
   review: Record<number, boolean>;
+  questionRefs: Record<number, string>;
 }): Promise<void> {
   if (typeof window === "undefined") return;
 

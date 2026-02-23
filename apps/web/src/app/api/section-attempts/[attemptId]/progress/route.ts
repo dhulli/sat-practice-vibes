@@ -10,6 +10,7 @@ const Body = z.object({
   remainingSeconds: z.number().int().min(0),
   selected: z.record(z.string()),
   review: z.record(z.boolean()),
+  questionRefs: z.record(z.string()),
 });
 
 export async function POST(req: Request, ctx: { params: Promise<{ attemptId: string }> }) {
@@ -18,7 +19,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ attemptId: str
     const { attemptId } = await ctx.params;
     const body = Body.parse(await req.json());
 
-    await prisma.sectionAttempt.updateMany({
+    const updated = await prisma.sectionAttempt.updateMany({
       where: { id: attemptId, userId: user.id },
       data: {
         currentIndex: body.currentIndex,
@@ -27,6 +28,35 @@ export async function POST(req: Request, ctx: { params: Promise<{ attemptId: str
         reviewJson: body.review,
       },
     });
+
+    if (updated.count === 0) {
+      return NextResponse.json({ error: "Attempt not found" }, { status: 404 });
+    }
+
+    const answerOps = Object.entries(body.selected)
+      .filter(([, answer]) => String(answer).trim() !== "")
+      .map(([idx, answer]) => {
+        const questionRef = body.questionRefs[idx] ?? `Q-${idx}`;
+        return prisma.sectionAttemptAnswer.upsert({
+          where: {
+            attemptId_questionRef: {
+              attemptId,
+              questionRef,
+            },
+          },
+          create: {
+            attemptId,
+            questionRef,
+            answer: String(answer),
+          },
+          update: {
+            answer: String(answer),
+            answeredAt: new Date(),
+          },
+        });
+      });
+
+    if (answerOps.length > 0) await prisma.$transaction(answerOps);
 
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {

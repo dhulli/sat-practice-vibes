@@ -87,6 +87,11 @@ export function SectionAttemptClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const questionRefs = useMemo(() => {
+    const items = sectionType === "RW" ? rwItems : mathItems;
+    return Object.fromEntries(items.map((q, i) => [i, q.id]));
+  }, [sectionType, rwItems, mathItems]);
+
   useEffect(() => {
     const handle = window.setTimeout(() => {
       void saveAttemptProgress({
@@ -95,11 +100,12 @@ export function SectionAttemptClient({
         remainingSeconds,
         selected: state.selected,
         review: state.review,
+        questionRefs,
       });
     }, 700);
 
     return () => window.clearTimeout(handle);
-  }, [attemptId, state, remainingSeconds]);
+  }, [attemptId, state, remainingSeconds, questionRefs]);
 
   async function handleSubmit() {
     await markAttemptSubmitted(attemptId);

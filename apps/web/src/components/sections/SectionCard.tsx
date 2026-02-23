@@ -50,10 +50,14 @@ export function SectionCard({ section }: { section: SectionDef }) {
   }
 
   async function onStart() {
-    const attemptId = await createSectionAttempt(section.id, section.type);
-    setSectionStatus(section.id, "in_progress");
-    refresh();
-    router.push(`/attempts/section/${attemptId}`);
+    try {
+      const attemptId = await createSectionAttempt(section.id, section.type);
+      setSectionStatus(section.id, "in_progress");
+      refresh();
+      router.push(`/attempts/section/${attemptId}`);
+    } catch {
+      alert("Could not start attempt on server. Please check auth and database setup.");
+    }
   }
 
   function onResume() {
