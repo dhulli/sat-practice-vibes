@@ -15,6 +15,7 @@ import {
   markAttemptSubmitted,
   saveAttemptProgress,
 } from "@/lib/attemptStore";
+import { markAttemptSubmitted } from "@/lib/attemptStore";
 import { setSectionStatus } from "@/lib/sectionStatusStore";
 
 type AttemptState = {
@@ -77,6 +78,7 @@ export function SectionAttemptClient({
         if (prev <= 1) {
           window.clearInterval(timer);
           void handleSubmit();
+          handleSubmit();
           return 0;
         }
         return prev - 1;
@@ -111,6 +113,12 @@ export function SectionAttemptClient({
     await markAttemptExited(attemptId);
     setSectionStatus(sectionId, "not_started");
     router.push("/section-practice");
+  function handleSubmit() {
+    markAttemptSubmitted(attemptId);
+    setSectionStatus(sectionId, "completed");
+    router.push(
+      `/attempts/section/${attemptId}/summary?sectionId=${encodeURIComponent(sectionId)}`
+    );
   }
 
   const statuses = useMemo(
@@ -210,6 +218,7 @@ export function SectionAttemptClient({
         onExit={() => {
           void handleExit();
         }}
+        onSubmit={handleSubmit}
         userLabel="Student"
       />
     );
@@ -316,6 +325,7 @@ export function SectionAttemptClient({
       onExit={() => {
         void handleExit();
       }}
+      onSubmit={handleSubmit}
       userLabel="Student"
     />
   );
