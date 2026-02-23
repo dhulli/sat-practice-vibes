@@ -47,6 +47,13 @@ export function AppShell({
   userLabel?: string;
   rightSlot?: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isFocusedAttempt = /^\/attempts\/section\/[^/]+$/.test(pathname);
+
+  if (isFocusedAttempt) {
+    return <main className="h-screen w-screen overflow-hidden bg-background">{children}</main>;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
