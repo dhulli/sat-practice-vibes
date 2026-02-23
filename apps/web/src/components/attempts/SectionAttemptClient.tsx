@@ -10,6 +10,11 @@ import { Input } from "@/components/ui/input";
 import { buildMockRwSection } from "@/lib/mockRwSection";
 import { buildMockMathSection } from "@/lib/mockMathSection";
 import type { SectionType } from "@/lib/sections";
+import {
+  markAttemptExited,
+  markAttemptSubmitted,
+  saveAttemptProgress,
+} from "@/lib/attemptStore";
 import { markAttemptSubmitted } from "@/lib/attemptStore";
 import { setSectionStatus } from "@/lib/sectionStatusStore";
 
@@ -72,6 +77,7 @@ export function SectionAttemptClient({
       setRemainingSeconds((prev) => {
         if (prev <= 1) {
           window.clearInterval(timer);
+          void handleSubmit();
           handleSubmit();
           return 0;
         }
@@ -83,6 +89,30 @@ export function SectionAttemptClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      void saveAttemptProgress({
+        attemptId,
+        currentIndex: state.currentIndex,
+        remainingSeconds,
+        selected: state.selected,
+        review: state.review,
+      });
+    }, 700);
+
+    return () => window.clearTimeout(handle);
+  }, [attemptId, state, remainingSeconds]);
+
+  async function handleSubmit() {
+    await markAttemptSubmitted(attemptId);
+    setSectionStatus(sectionId, "not_started");
+    router.push(`/attempts/section/${attemptId}/summary?sectionId=${encodeURIComponent(sectionId)}`);
+  }
+
+  async function handleExit() {
+    await markAttemptExited(attemptId);
+    setSectionStatus(sectionId, "not_started");
+    router.push("/section-practice");
   function handleSubmit() {
     markAttemptSubmitted(attemptId);
     setSectionStatus(sectionId, "completed");
@@ -182,6 +212,12 @@ export function SectionAttemptClient({
             currentIndex: Math.min(total - 1, s.currentIndex + 1),
           }))
         }
+        onSubmit={() => {
+          void handleSubmit();
+        }}
+        onExit={() => {
+          void handleExit();
+        }}
         onSubmit={handleSubmit}
         userLabel="Student"
       />
@@ -283,6 +319,12 @@ export function SectionAttemptClient({
           currentIndex: Math.min(total - 1, s.currentIndex + 1),
         }))
       }
+      onSubmit={() => {
+        void handleSubmit();
+      }}
+      onExit={() => {
+        void handleExit();
+      }}
       onSubmit={handleSubmit}
       userLabel="Student"
     />
