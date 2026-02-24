@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /*
   Warnings:
 
@@ -60,3 +61,15 @@ CREATE INDEX "SectionAttempt_userId_status_idx" ON "SectionAttempt"("userId", "s
 
 -- AddForeignKey
 ALTER TABLE "SectionAttempt" ADD CONSTRAINT "SectionAttempt_practiceSectionId_fkey" FOREIGN KEY ("practiceSectionId") REFERENCES "PracticeSection"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+=======
+-- Compatibility shim for local migration-order drift.
+-- Some environments have this migration timestamp before add_section_attempts,
+-- but contain statements that reference SectionAttemptStatus.
+-- Ensure enum exists so later/duplicated DDL can run safely.
+DO $$
+BEGIN
+  CREATE TYPE "SectionAttemptStatus" AS ENUM ('IN_PROGRESS', 'SUBMITTED', 'EXITED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+>>>>>>> 1acf142be4745c0fc14b279f7feeb18311657f38
