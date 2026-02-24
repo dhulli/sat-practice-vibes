@@ -13,13 +13,13 @@ export function MockSubmitSection({
 }) {
   return (
     <Button
-      onClick={() => {
-        markAttemptSubmitted(attemptId);
-        setSectionStatus(sectionId, "completed");
+      onClick={async () => {
+        await markAttemptSubmitted(attemptId);
+        setSectionStatus(sectionId, "not_started");
         window.location.href = `/attempts/section/${attemptId}/summary?sectionId=${encodeURIComponent(sectionId)}`;
       }}
     >
-      Mock Submit (complete)
+      Mock Submit (complete attempt)
     </Button>
   );
 }

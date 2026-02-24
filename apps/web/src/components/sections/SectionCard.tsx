@@ -14,7 +14,6 @@ import {
 } from "@/lib/attemptStore";
 import { useRouter } from "next/navigation";
 
-
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -25,17 +24,18 @@ function statusLabel(status: string) {
   switch (status) {
     case "in_progress":
       return { text: "In progress", variant: "secondary" as const };
-    case "completed":
-      return { text: "Completed", variant: "default" as const };
     default:
-      return { text: "Not started", variant: "outline" as const };
+      return { text: "Ready", variant: "outline" as const };
   }
 }
 
 export function SectionCard({ section }: { section: SectionDef }) {
   const [_, force] = useState(0);
 
-  const status = useMemo(() => getSectionStatus(section.id), [section.id, _]);
+  const status = useMemo(() => {
+    const s = getSectionStatus(section.id);
+    return s === "in_progress" ? "in_progress" : "not_started";
+  }, [section.id, _]);
   const activeAttemptId = useMemo(() => getActiveAttemptIdForSection(section.id), [section.id, _]);
   const lastCompletedAttemptId = useMemo(
     () => getLastCompletedAttemptIdForSection(section.id),
@@ -49,12 +49,15 @@ export function SectionCard({ section }: { section: SectionDef }) {
     force((x) => x + 1);
   }
 
-  function onStart() {
-    const attemptId = createSectionAttempt(section.id, section.type);
-    setSectionStatus(section.id, "in_progress");
-    refresh();
-    // Navigate via Link to keep code simple; we can programmatic route later.
-    router.push(`/attempts/section/${attemptId}`);
+  async function onStart() {
+    try {
+      const attemptId = await createSectionAttempt(section.id, section.type);
+      setSectionStatus(section.id, "in_progress");
+      refresh();
+      router.push(`/attempts/section/${attemptId}`);
+    } catch {
+      alert("Could not start attempt on server. Please check auth and database setup.");
+    }
   }
 
   function onResume() {
@@ -62,7 +65,7 @@ export function SectionCard({ section }: { section: SectionDef }) {
     router.push(`/attempts/section/${activeAttemptId}`);
   }
 
-  const canReview = status === "completed" && !!lastCompletedAttemptId;
+  const canReview = !!lastCompletedAttemptId;
 
   return (
     <Card className="rounded-2xl">
@@ -80,33 +83,29 @@ export function SectionCard({ section }: { section: SectionDef }) {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {status === "not_started" && (
-            <Button onClick={onStart}>Start</Button>
-          )}
-
-          {status === "in_progress" && (
+          {status === "in_progress" ? (
             <>
               <Button onClick={onResume}>Resume</Button>
               <Button variant="secondary" onClick={onStart}>
-                Restart
+                Start New Attempt
               </Button>
             </>
+          ) : (
+            <Button onClick={onStart}>Start Attempt</Button>
           )}
 
           {canReview ? (
             <Button asChild variant="secondary">
               <Link href={`/attempts/section/${lastCompletedAttemptId}/summary?sectionId=${section.id}`}>
-                Review
+                Review Last Attempt
               </Link>
             </Button>
           ) : (
             <Button variant="secondary" disabled>
-              Review
+              Review Last Attempt
             </Button>
           )}
         </div>
-
-        {/* Dev helper (optional): remove later */}        
       </CardContent>
     </Card>
   );
