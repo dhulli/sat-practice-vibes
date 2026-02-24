@@ -38,6 +38,7 @@ type Props = {
 
   userLabel?: string;
   interceptLastNext?: boolean; // default true for timed sections
+  onExit?: () => void;
 };
 
 export function ExamShell({
@@ -57,6 +58,7 @@ export function ExamShell({
   onSubmit,
   userLabel,
   interceptLastNext = true,
+  onExit,
 }: Props) {
   const [gridOpen, setGridOpen] = useState(false);
 
@@ -79,6 +81,7 @@ export function ExamShell({
         onToggleDirections={() => {
           // later: slide-down directions panel
         }}
+        onExit={onExit}
       />
 
       {/* Main area */}
