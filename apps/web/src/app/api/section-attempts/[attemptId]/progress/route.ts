@@ -56,9 +56,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ attemptId: str
         });
       });
 
-    if (answerOps.length > 0) await prisma.$transaction(answerOps);
+    if (answerOps.length > 0) {
+      try {
+        await prisma.$transaction(answerOps);
+      } catch (err) {
+        // Keep attempt progress durable even if answer-row schema is behind on a developer machine.
+        console.error("[section-attempts/progress] answer upsert skipped", err);
+        return NextResponse.json({ ok: true, answersPersisted: false });
+      }
+    }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, answersPersisted: true });
   } catch (e: unknown) {
     if (e instanceof ZodError) {
       return NextResponse.json({ error: "Invalid progress payload", issues: e.issues }, { status: 422 });
