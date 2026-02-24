@@ -67,7 +67,7 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  section     Section     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section     Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   microSkills MicroSkill[]
 }
 
@@ -75,15 +75,15 @@ model MicroSkill {
   id         String   @id @default(uuid())
   sectionId  String
   categoryId String
-  code       String   @unique   // e.g. RW-MS-001
+  code       String   @unique // e.g. RW-MS-001
   name       String
   active     Boolean  @default(true)
   order      Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  category  Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  section   Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  category  Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   questions Question[]
 
   progress SkillProgress[]
@@ -95,24 +95,21 @@ model MicroSkill {
 
 model Question {
   id                   String       @id @default(uuid())
-  microSkillId          String
-  questionType          QuestionType
-  passageHtml           String?      // RW passage (optional)
-  questionHtml          String
-  choicesJson           Json?        // for MCQ: [{id:"A", textHtml:"..."}]
-  correctAnswer         String       // "A"/"B"/... or SPR value
-  explanationHtml       String
-  complexity            String       // Easy/Medium/Hard (string for now)
-  complexityReasonHtml  String
-  assetUrl              String?      // graph image later
-  active                Boolean      @default(true)
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  microSkillId         String
+  questionType         QuestionType
+  passageHtml          String? // RW passage (optional)
+  questionHtml         String
+  choicesJson          Json? // for MCQ: [{id:"A", textHtml:"..."}]
+  correctAnswer        String // "A"/"B"/... or SPR value
+  explanationHtml      String
+  complexity           String // Easy/Medium/Hard (string for now)
+  complexityReasonHtml String
+  assetUrl             String? // graph image later
+  active               Boolean      @default(true)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
-  sequenceNo            Int
-
-  @@unique([microSkillId, sequenceNo])
-  @@index([microSkillId, active, sequenceNo])
+  sequenceNo Int
 
   microSkill MicroSkill @relation(fields: [microSkillId], references: [id], onDelete: Cascade)
 
@@ -200,16 +197,16 @@ model SectionAttemptAnswer {
 }
 
 model SkillProgress {
-  id           String   @id @default(uuid())
-  userId       String
-  microSkillId String
-  masteryPct   Int      @default(0) // 0..100
-  masteredCount Int     @default(0)
-  totalQuestions Int    @default(30)
-  updatedAt    DateTime @updatedAt
-  createdAt    DateTime @default(now())
+  id             String   @id @default(uuid())
+  userId         String
+  microSkillId   String
+  masteryPct     Int      @default(0) // 0..100
+  masteredCount  Int      @default(0)
+  totalQuestions Int      @default(30)
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   microSkill MicroSkill @relation(fields: [microSkillId], references: [id], onDelete: Cascade)
 
   @@unique([userId, microSkillId])
@@ -222,7 +219,7 @@ model SkillSession {
   microSkillId  String
   status        SessionStatus @default(IN_PROGRESS)
   cycle         Int           @default(1)
-  queueJson     Json          // list of questionIds for current cycle
+  queueJson     Json // list of questionIds for current cycle
   pos           Int           @default(0) // index in queueJson
   nextQueueJson Json          @default("[]")
   masteredJson  Json          @default("[]") // list of mastered questionIds (set-like)
@@ -232,7 +229,7 @@ model SkillSession {
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   microSkill MicroSkill @relation(fields: [microSkillId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, microSkillId])
   @@index([userId])
   @@index([microSkillId])
-  @@unique([userId, microSkillId])
 }
