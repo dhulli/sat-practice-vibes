@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { ZodError, z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/serverAuth";
 
@@ -10,7 +10,7 @@ const Body = z.object({
   remainingSeconds: z.number().int().min(0),
   selected: z.record(z.string()),
   review: z.record(z.boolean()),
-  questionRefs: z.record(z.string()),
+  questionRefs: z.record(z.string()).optional().default({}),
 });
 
 export async function POST(req: Request, ctx: { params: Promise<{ attemptId: string }> }) {
@@ -60,8 +60,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ attemptId: str
 
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
+    if (e instanceof ZodError) {
+      return NextResponse.json({ error: "Invalid progress payload", issues: e.issues }, { status: 422 });
+    }
+
     const err = e as { message?: string };
-    const status = err.message === "Unauthorized" ? 401 : 400;
-    return NextResponse.json({ error: err.message ?? "Bad Request" }, { status });
+    const status = err.message === "Unauthorized" ? 401 : 500;
+    const error = err.message ?? "Internal Server Error";
+    return NextResponse.json({ error }, { status });
   }
 }

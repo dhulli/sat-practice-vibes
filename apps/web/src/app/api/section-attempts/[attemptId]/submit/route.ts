@@ -17,7 +17,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ attemptId: st
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
     const err = e as { message?: string };
-    const status = err.message === "Unauthorized" ? 401 : 400;
-    return NextResponse.json({ error: err.message ?? "Bad Request" }, { status });
+    const status = err.message === "Unauthorized" ? 401 : 500;
+    return NextResponse.json({ error: err.message ?? "Internal Server Error" }, { status });
   }
 }

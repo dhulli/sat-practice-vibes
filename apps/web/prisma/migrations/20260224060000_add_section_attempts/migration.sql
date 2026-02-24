@@ -1,8 +1,13 @@
--- CreateEnum
-CREATE TYPE "SectionAttemptStatus" AS ENUM ('IN_PROGRESS', 'SUBMITTED', 'EXITED');
+-- CreateEnum (idempotent for branch-merge/local shadow collisions)
+DO $$
+BEGIN
+  CREATE TYPE "SectionAttemptStatus" AS ENUM ('IN_PROGRESS', 'SUBMITTED', 'EXITED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateTable
-CREATE TABLE "SectionAttempt" (
+CREATE TABLE IF NOT EXISTS "SectionAttempt" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "sectionId" TEXT NOT NULL,
@@ -22,13 +27,18 @@ CREATE TABLE "SectionAttempt" (
 );
 
 -- CreateIndex
-CREATE INDEX "SectionAttempt_userId_sectionId_idx" ON "SectionAttempt"("userId", "sectionId");
+CREATE INDEX IF NOT EXISTS "SectionAttempt_userId_sectionId_idx" ON "SectionAttempt"("userId", "sectionId");
 
 -- CreateIndex
-CREATE INDEX "SectionAttempt_userId_status_idx" ON "SectionAttempt"("userId", "status");
+CREATE INDEX IF NOT EXISTS "SectionAttempt_userId_status_idx" ON "SectionAttempt"("userId", "status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SectionAttempt_userId_sectionId_attemptNo_key" ON "SectionAttempt"("userId", "sectionId", "attemptNo");
+CREATE UNIQUE INDEX IF NOT EXISTS "SectionAttempt_userId_sectionId_attemptNo_key" ON "SectionAttempt"("userId", "sectionId", "attemptNo");
 
 -- AddForeignKey
-ALTER TABLE "SectionAttempt" ADD CONSTRAINT "SectionAttempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  ALTER TABLE "SectionAttempt" ADD CONSTRAINT "SectionAttempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;

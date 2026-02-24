@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { ZodError, z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/serverAuth";
 
@@ -34,8 +34,12 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ attemptId: created.id, startedAt: created.startedAt.toISOString() });
   } catch (e: unknown) {
+    if (e instanceof ZodError) {
+      return NextResponse.json({ error: "Invalid start payload", issues: e.issues }, { status: 422 });
+    }
+
     const err = e as { message?: string };
-    const status = err.message === "Unauthorized" ? 401 : 400;
-    return NextResponse.json({ error: err.message ?? "Bad Request" }, { status });
+    const status = err.message === "Unauthorized" ? 401 : 500;
+    return NextResponse.json({ error: err.message ?? "Internal Server Error" }, { status });
   }
 }
