@@ -34,3 +34,35 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Prisma schema troubleshooting
+
+If Prisma throws errors like duplicate model definitions or enum parse errors (`P1012`), validate and generate from the `apps/web` folder:
+
+```bash
+# PowerShell
+$env:DATABASE_URL="postgresql://u:p@localhost:5432/db"
+pnpm prisma:validate
+pnpm prisma:generate
+```
+
+
+If `pnpm prisma migrate dev` fails with `syntax error at or near "<<<<<<<"`, check for unresolved merge markers first:
+
+```bash
+# from apps/web
+pnpm prisma:check-migrations
+```
+
+To apply schema changes to your database (generate alone is not enough):
+
+```bash
+# PowerShell
+$env:DATABASE_URL="postgresql://u:p@localhost:5432/db"
+pnpm prisma:migrate:dev
+pnpm prisma:generate
+```
+
+Notes:
+- `prisma generate` and `prisma validate` both require `DATABASE_URL` to be set.
+- The schema should contain only one definition each for `SectionAttempt`, `PracticeSection`, `PracticeSectionQuestion`, and `SectionAttemptAnswer`.

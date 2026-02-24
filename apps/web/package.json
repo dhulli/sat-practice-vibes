@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate",
+    "prisma:check-migrations": "node scripts/check-prisma-migration-markers.mjs",
+    "prisma:migrate:dev": "pnpm prisma:check-migrations && prisma migrate dev"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.0",
