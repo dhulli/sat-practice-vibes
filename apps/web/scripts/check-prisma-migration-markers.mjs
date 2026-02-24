@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 
 const repoRoot = process.cwd();
 const migrationsDir = join(repoRoot, 'prisma', 'migrations');
-const markerPattern = /^(<<<<<<<|=======|>>>>>>>) /m;
+const markerPattern = /^(<<<<<<<|=======|>>>>>>>)( .*)?$/m;
 
 function walk(dir) {
   const entries = readdirSync(dir);
