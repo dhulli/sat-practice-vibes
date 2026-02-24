@@ -26,6 +26,21 @@ CREATE TABLE IF NOT EXISTS "SectionAttempt" (
     CONSTRAINT "SectionAttempt_pkey" PRIMARY KEY ("id")
 );
 
+-- Ensure required columns exist when table already came from another branch shape
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "userId" TEXT;
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "sectionId" TEXT;
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "sectionType" "SectionCode";
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "attemptNo" INTEGER;
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "status" "SectionAttemptStatus" DEFAULT 'IN_PROGRESS';
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "currentIndex" INTEGER DEFAULT 0;
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "remainingSeconds" INTEGER DEFAULT 0;
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "selectedJson" JSONB DEFAULT '{}';
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "reviewJson" JSONB DEFAULT '{}';
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "startedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "endedAt" TIMESTAMP(3);
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "SectionAttempt" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3);
+
 -- CreateIndex
 CREATE INDEX IF NOT EXISTS "SectionAttempt_userId_sectionId_idx" ON "SectionAttempt"("userId", "sectionId");
 
