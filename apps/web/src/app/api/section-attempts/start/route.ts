@@ -10,10 +10,16 @@ const Body = z.object({
   sectionType: z.enum(["RW", "MATH"]),
 });
 
+
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
     const body = Body.parse(await req.json());
+
+    const ps = await prisma.practiceSection.findUnique({
+      where: { code: body.sectionId }, // your UI passes RW-01 / MATH-01 style
+      select: { id: true },
+    });
 
     const last = await prisma.sectionAttempt.findFirst({
       where: { userId: user.id, sectionId: body.sectionId },
@@ -26,8 +32,11 @@ export async function POST(req: Request) {
         userId: user.id,
         sectionId: body.sectionId,
         sectionType: body.sectionType,
+        practiceSectionId: ps?.id ?? null,   // ✅ link it
         attemptNo: (last?.attemptNo ?? 0) + 1,
         status: "IN_PROGRESS",
+        // optional: start with full time if you want
+        // remainingSeconds: ps ? (await prisma.practiceSection.findUnique({where:{code: body.sectionId}, select:{durationSec:true}}))?.durationSec ?? 0 : 0
       },
       select: { id: true, startedAt: true },
     });

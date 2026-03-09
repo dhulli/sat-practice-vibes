@@ -7,8 +7,6 @@ import type { QuestionStatus } from "@/components/exam/QuestionGridModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { buildMockRwSection } from "@/lib/mockRwSection";
-import { buildMockMathSection } from "@/lib/mockMathSection";
 import type { SectionType } from "@/lib/sections";
 import {
   markAttemptExited,
@@ -16,6 +14,31 @@ import {
   saveAttemptProgress,
 } from "@/lib/attemptStore";
 import { setSectionStatus } from "@/lib/sectionStatusStore";
+
+type ApiChoice = { id: string; textHtml: string };
+
+type ApiQuestion = {
+  id: string;
+  questionType: string; // e.g., "MCQ" | "SPR" | etc (depends on your DB)
+  passageHtml: string | null; // RW passage / Math stimulus (optional)
+  questionHtml: string;
+  assetUrl: string | null;
+  choices: ApiChoice[]; // empty for SPR
+};
+
+type AttemptLoad = {
+  attempt: {
+    id: string;
+    status: string;
+    sectionType: "RW" | "MATH";
+    currentIndex: number;
+    remainingSeconds: number;
+    selected: Record<string, string>;
+    review: Record<string, boolean>;
+  };
+  practiceSection: { code: string; name: string; durationSec: number; type: "RW" | "MATH" };
+  questions: ApiQuestion[];
+};
 
 type AttemptState = {
   currentIndex: number;
@@ -36,6 +59,23 @@ function formatTime(totalSeconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function toNumberKeyMap<T>(obj: Record<string, T> | null | undefined): Record<number, T> {
+  const out: Record<number, T> = {};
+  if (!obj) return out;
+  for (const [k, v] of Object.entries(obj)) {
+    const n = Number(k);
+    if (!Number.isNaN(n)) out[n] = v;
+  }
+  return out;
+}
+
+function isMathSpr(q: ApiQuestion): boolean {
+  // Prefer explicit type if you have it. Otherwise: no choices => SPR-like.
+  const t = (q.questionType ?? "").toLowerCase();
+  if (t.includes("spr") || t.includes("grid") || t.includes("free")) return true;
+  return !q.choices || q.choices.length === 0;
+}
+
 export function SectionAttemptClient({
   attemptId,
   sectionId,
@@ -46,11 +86,10 @@ export function SectionAttemptClient({
   sectionType: SectionType;
 }) {
   const router = useRouter();
-  const total = sectionType === "RW" ? 27 : 22;
-  const timeLimit = sectionType === "RW" ? 32 * 60 : 35 * 60;
 
-  const rwItems = useMemo(() => buildMockRwSection(total), [total]);
-  const mathItems = useMemo(() => buildMockMathSection(total), [total]);
+  const [loading, setLoading] = useState(true);
+  const [questions, setQuestions] = useState<ApiQuestion[]>([]);
+  const [timeLimit, setTimeLimit] = useState(sectionType === "RW" ? 32 * 60 : 35 * 60);
 
   const [remainingSeconds, setRemainingSeconds] = useState(timeLimit);
   const [state, setState] = useState<AttemptState>({
@@ -59,19 +98,67 @@ export function SectionAttemptClient({
     review: {},
   });
 
-  const idx = state.currentIndex;
-  const rwQ = rwItems[idx];
-  const mathQ = mathItems[idx];
-
   const leftScrollRef = useRef<HTMLDivElement | null>(null);
   const rightScrollRef = useRef<HTMLDivElement | null>(null);
 
+  // Load attempt + questions from DB
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      setLoading(true);
+      const res = await fetch(`/api/section-attempts/${attemptId}`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to load attempt/questions");
+
+      const data = (await res.json()) as AttemptLoad;
+      if (!alive) return;
+
+      setQuestions(data.questions ?? []);
+
+      const dur = Number(data.practiceSection?.durationSec ?? 0);
+      const effectiveTimeLimit = dur > 0 ? dur : sectionType === "RW" ? 32 * 60 : 35 * 60;
+      setTimeLimit(effectiveTimeLimit);
+
+      const rs = Number(data.attempt?.remainingSeconds ?? 0);
+      setRemainingSeconds(rs > 0 ? rs : effectiveTimeLimit);
+
+      setState({
+        currentIndex: Number(data.attempt?.currentIndex ?? 0) || 0,
+        selected: toNumberKeyMap<string>(data.attempt?.selected),
+        review: toNumberKeyMap<boolean>(data.attempt?.review),
+      });
+
+      setLoading(false);
+    })().catch(() => {
+      if (!alive) return;
+      setLoading(false);
+      alert("Could not load section from DB. Check API / DB seed.");
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, [attemptId, sectionType]);
+
+  const total = questions.length;
+  const idx = Math.min(state.currentIndex, Math.max(0, total - 1));
+  const q = questions[idx];
+
+  // Reset scroll on question change
   useEffect(() => {
     leftScrollRef.current?.scrollTo({ top: 0 });
     rightScrollRef.current?.scrollTo({ top: 0 });
   }, [idx]);
 
+  // Timer (starts after load so we don’t auto-submit while still loading)
   useEffect(() => {
+    if (loading) return;
+    if (total === 0) return;
+
     const timer = window.setInterval(() => {
       setRemainingSeconds((prev) => {
         if (prev <= 1) {
@@ -85,18 +172,22 @@ export function SectionAttemptClient({
 
     return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loading, total]);
 
+  // Map question index -> question UUID (for answer upserts)
   const questionRefs = useMemo(() => {
-    const items = sectionType === "RW" ? rwItems : mathItems;
-    return Object.fromEntries(items.map((q, i) => [i, q.id]));
-  }, [sectionType, rwItems, mathItems]);
+    return Object.fromEntries((questions ?? []).map((qq, i) => [i, qq.id]));
+  }, [questions]);
 
+  // Autosave
   useEffect(() => {
+    if (loading) return;
+    if (total === 0) return;
+
     const handle = window.setTimeout(() => {
       void saveAttemptProgress({
         attemptId,
-        currentIndex: state.currentIndex,
+        currentIndex: idx,
         remainingSeconds,
         selected: state.selected,
         review: state.review,
@@ -105,12 +196,14 @@ export function SectionAttemptClient({
     }, 700);
 
     return () => window.clearTimeout(handle);
-  }, [attemptId, state, remainingSeconds, questionRefs]);
+  }, [attemptId, idx, state.selected, state.review, remainingSeconds, questionRefs, loading, total]);
 
   async function handleSubmit() {
     await markAttemptSubmitted(attemptId);
     setSectionStatus(sectionId, "not_started");
-    router.push(`/attempts/section/${attemptId}/summary?sectionId=${encodeURIComponent(sectionId)}`);
+    router.push(
+      `/attempts/section/${attemptId}/summary?sectionId=${encodeURIComponent(sectionId)}`
+    );
   }
 
   async function handleExit() {
@@ -124,12 +217,30 @@ export function SectionAttemptClient({
     [state, total]
   );
 
+  if (loading) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading section…</div>;
+  }
+
+  if (!q || total === 0) {
+    return (
+      <div className="p-6 space-y-3">
+        <div className="text-sm text-muted-foreground">No questions found for this section.</div>
+        <Button onClick={() => router.push("/section-practice")}>Back</Button>
+      </div>
+    );
+  }
+
+  // ---------- RW UI ----------
   if (sectionType === "RW") {
     const selected = state.selected[idx];
 
     const leftPane = (
       <div ref={leftScrollRef} className="h-full overflow-auto p-6">
-        <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: rwQ.paragraphHtml }} />
+        {q.passageHtml ? (
+          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: q.passageHtml }} />
+        ) : (
+          <div className="text-sm text-muted-foreground">No passage.</div>
+        )}
       </div>
     );
 
@@ -154,10 +265,10 @@ export function SectionAttemptClient({
 
         <Card className="rounded-2xl">
           <CardContent className="p-5 space-y-3">
-            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: rwQ.questionHtml }} />
+            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: q.questionHtml }} />
 
             <div className="space-y-2">
-              {rwQ.choices.map((c) => {
+              {(q.choices ?? []).map((c) => {
                 const isSel = selected === c.id;
                 return (
                   <button
@@ -174,7 +285,8 @@ export function SectionAttemptClient({
                     }
                   >
                     <div className="text-sm font-semibold">
-                      {c.id}. {c.text}
+                      {c.id}.{" "}
+                      <span dangerouslySetInnerHTML={{ __html: c.textHtml }} />
                     </div>
                   </button>
                 );
@@ -210,18 +322,16 @@ export function SectionAttemptClient({
             currentIndex: Math.min(total - 1, s.currentIndex + 1),
           }))
         }
-        onSubmit={() => {
-          void handleSubmit();
-        }}
-        onExit={() => {
-          void handleExit();
-        }}
+        onSubmit={() => void handleSubmit()}
+        onExit={() => void handleExit()}
         userLabel="Student"
       />
     );
   }
 
+  // ---------- Math UI ----------
   const selected = state.selected[idx] ?? "";
+  const spr = isMathSpr(q);
 
   const mainPane = (
     <div className="space-y-4">
@@ -243,14 +353,15 @@ export function SectionAttemptClient({
             </Button>
           </div>
 
-          {mathQ.stimulusHtml ? (
-            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: mathQ.stimulusHtml }} />
+          {q.passageHtml ? (
+            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: q.passageHtml }} />
           ) : null}
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: mathQ.questionHtml }} />
 
-          {mathQ.kind === "mcq" ? (
+          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: q.questionHtml }} />
+
+          {!spr ? (
             <div className="space-y-2">
-              {mathQ.choices?.map((c) => {
+              {(q.choices ?? []).map((c) => {
                 const isSel = selected === c.id;
                 return (
                   <button
@@ -267,7 +378,8 @@ export function SectionAttemptClient({
                     }
                   >
                     <div className="text-sm font-semibold">
-                      {c.id}. {c.text}
+                      {c.id}.{" "}
+                      <span dangerouslySetInnerHTML={{ __html: c.textHtml }} />
                     </div>
                   </button>
                 );
@@ -316,12 +428,8 @@ export function SectionAttemptClient({
           currentIndex: Math.min(total - 1, s.currentIndex + 1),
         }))
       }
-      onSubmit={() => {
-        void handleSubmit();
-      }}
-      onExit={() => {
-        void handleExit();
-      }}
+      onSubmit={() => void handleSubmit()}
+      onExit={() => void handleExit()}
       userLabel="Student"
     />
   );

@@ -1,8 +1,30 @@
+import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/serverAuth";
 import { SectionCard } from "@/components/sections/SectionCard";
-import { buildSections } from "@/lib/sections";
 
-export default function MathSectionsPage() {
-  const sections = buildSections("MATH", 30);
+export default async function MathSectionsPage() {
+  await requireUser();
+
+  const sections = await prisma.practiceSection.findMany({
+    where: { type: "MATH", active: true },
+    orderBy: { code: "asc" },
+    select: {
+      code: true,
+      name: true,
+      durationSec: true,
+      type: true,
+      _count: { select: { questions: true } },
+    },
+  });
+
+  const defs = sections.map((s, idx) => ({
+    id: s.code,
+    type: s.type,
+    number: idx + 1,
+    title: s.name,
+    totalQuestions: s._count.questions,
+    timeLimitSeconds: s.durationSec,
+  }));
 
   return (
     <div className="space-y-4">
@@ -10,13 +32,13 @@ export default function MathSectionsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Math Sections</h1>
           <p className="text-sm text-muted-foreground">
-            Timed practice • 22 questions • 4 categories • 30 sections
+            Timed practice • DB-backed sections • results + review
           </p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {sections.map((s) => (
+        {defs.map((s) => (
           <SectionCard key={s.id} section={s} />
         ))}
       </div>
